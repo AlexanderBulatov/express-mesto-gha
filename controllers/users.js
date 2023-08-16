@@ -60,6 +60,7 @@ module.exports.createUser = (req, res) => {
 module.exports.updateUserInfo = (req, res) => {
   const userId = req.user._id;
   User.findByIdAndUpdate(userId, req.body, { returnDocument: 'after', runValidators: true })
+    .orFail()
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
     .catch((err) => {
       if (err instanceof mongoose.Error.DocumentNotFoundError) {
@@ -87,6 +88,7 @@ module.exports.updateUserAvatar = (req, res) => {
   const userId = req.user._id;
   const { avatar } = req.body;
   User.findByIdAndUpdate(userId, { avatar }, { returnDocument: 'after', runValidators: true })
+    .orFail()
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
     .catch((err) => {
       if (err instanceof mongoose.Error.DocumentNotFoundError) {

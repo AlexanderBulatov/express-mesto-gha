@@ -1,6 +1,6 @@
 module.exports = {
   env: {
-    browser: true,
+    browser: false,
     commonjs: true,
     es2021: true,
   },
@@ -22,8 +22,9 @@ module.exports = {
     ecmaVersion: 'latest',
   },
   rules: {
+    'no-underscore-dangle': ['error', { allow: ['_id'] }],
     // 'import/no-extraneous-dependencies': 'off',
-    'no-underscore-dangle': 'off',
+    // 'no-underscore-dangle': 'off',
     // 'import/no-extraneous-dependencies': ['error', { packageDir: __dirname }],
   },
   // workingDirectories: [{ "mode": "auto" }],
