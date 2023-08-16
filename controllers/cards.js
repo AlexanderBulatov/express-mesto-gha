@@ -41,10 +41,14 @@ module.exports.deleteCard = (req, res) => {
     .orFail()
     .then((card) => res.send({ data: card }))
     .catch((err) => {
-      if (err instanceof mongoose.Error.DocumentNotFoundError
-        || err instanceof mongoose.Error.CastError) {
+      if (err instanceof mongoose.Error.DocumentNotFoundError) {
         return res.status(HTTP_STATUS_NOT_FOUND).send({
           message: `Карточки с переданным _id не существует. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
+        });
+      }
+      if (err instanceof mongoose.Error.CastError) {
+        return res.status(HTTP_STATUS_BAD_REQUEST).send({
+          message: `Некорректный формат _id. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
         });
       }
       return res.status(HTTP_STATUS_INTERNAL_SERVER_ERROR).send({

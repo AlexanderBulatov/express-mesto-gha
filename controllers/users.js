@@ -25,10 +25,14 @@ module.exports.findUser = (req, res) => {
     .orFail()
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
     .catch((err) => {
-      if (err instanceof mongoose.Error.DocumentNotFoundError
-        || err instanceof mongoose.Error.CastError) {
+      if (err instanceof mongoose.Error.DocumentNotFoundError) {
         return res.status(HTTP_STATUS_NOT_FOUND).send({
           message: `Пользователь с переданным _id не существует. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
+        });
+      }
+      if (err instanceof mongoose.Error.CastError) {
+        return res.status(HTTP_STATUS_BAD_REQUEST).send({
+          message: `Некорректный формат _id. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
         });
       }
       return res.status(HTTP_STATUS_INTERNAL_SERVER_ERROR).send({
@@ -58,10 +62,14 @@ module.exports.updateUserInfo = (req, res) => {
   User.findByIdAndUpdate(userId, req.body, { returnDocument: 'after', runValidators: true })
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
     .catch((err) => {
-      if (err instanceof mongoose.Error.DocumentNotFoundError
-        || err instanceof mongoose.Error.CastError) {
+      if (err instanceof mongoose.Error.DocumentNotFoundError) {
         return res.status(HTTP_STATUS_NOT_FOUND).send({
           message: `Пользователь с переданным _id не существует. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
+        });
+      }
+      if (err instanceof mongoose.Error.CastError) {
+        return res.status(HTTP_STATUS_BAD_REQUEST).send({
+          message: `Некорректный формат _id. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
         });
       }
       if (err instanceof mongoose.Error.ValidationError) {
@@ -81,13 +89,13 @@ module.exports.updateUserAvatar = (req, res) => {
   User.findByIdAndUpdate(userId, { avatar }, { returnDocument: 'after', runValidators: true })
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
     .catch((err) => {
-      if (err instanceof mongoose.Error.DocumentNotFoundError
-        || err instanceof mongoose.Error.CastError) {
+      if (err instanceof mongoose.Error.DocumentNotFoundError) {
         return res.status(HTTP_STATUS_NOT_FOUND).send({
           message: `Пользователь с переданным _id не существует. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
         });
       }
-      if (err instanceof mongoose.Error.ValidationError) {
+      if (err instanceof mongoose.Error.ValidationError
+         || err instanceof mongoose.Error.CastError) {
         return res.status(HTTP_STATUS_BAD_REQUEST).send({
           message: `Переданы некорректные данные. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
         });
