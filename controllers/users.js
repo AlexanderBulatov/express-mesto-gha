@@ -71,7 +71,10 @@ module.exports.login = (req, res, next) => {
         .cookie('jwtMesto', token, {
           maxAge: 3600000 * 24 * 7,
           httpOnly: true,
-        })
+        });
+      res.status(HTTP_STATUS_OK).send({
+        email: user.email, name: user.name, about: user.about, avatar: user.avatar, _id: user._id,
+      })
         .end();
     })
     .catch((err) => next(new CustomError(err)));
