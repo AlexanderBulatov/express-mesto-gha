@@ -1,109 +1,78 @@
 const {
   HTTP_STATUS_OK,
   HTTP_STATUS_CREATED,
-  HTTP_STATUS_BAD_REQUEST,
-  HTTP_STATUS_NOT_FOUND,
-  HTTP_STATUS_INTERNAL_SERVER_ERROR,
 } = require('http2').constants;
 
-const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const User = require('../models/user');
+const CustomError = require('../errors/customError');
 
-module.exports.getUsers = (req, res) => {
+module.exports.getUsers = (req, res, next) => {
   User.find({})
-    .then((users) => res.status(HTTP_STATUS_OK).send({ data: users }))
-    .catch((err) => {
-      res.status(HTTP_STATUS_INTERNAL_SERVER_ERROR).send({
-        message: `Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-      });
-    });
+    .then((users) => {
+      res.status(HTTP_STATUS_OK).send({ data: users });
+    })
+    .catch((err) => next(new CustomError(err)));
 };
 
-module.exports.findUser = (req, res) => {
+module.exports.findUser = (req, res, next) => {
   User.findById(req.params.userId)
     .orFail()
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
-    .catch((err) => {
-      if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        return res.status(HTTP_STATUS_NOT_FOUND).send({
-          message: `Пользователь с переданным _id не существует. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
-      }
-      if (err instanceof mongoose.Error.CastError) {
-        return res.status(HTTP_STATUS_BAD_REQUEST).send({
-          message: `Некорректный формат _id. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
-      }
-      return res.status(HTTP_STATUS_INTERNAL_SERVER_ERROR).send({
-        message: `Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-      });
-    });
+    .catch((err) => next(new CustomError(err)));
 };
 
-module.exports.createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
-  User.create({ name, about, avatar })
+module.exports.createUser = (req, res, next) => {
+  const {
+    name, about, avatar, email, password,
+  } = req.body;
+
+  bcrypt.hash(password, 10)
+    .then((hash) => User.create({
+      name, about, avatar, email, password: hash,
+    }))
     .then((user) => res.status(HTTP_STATUS_CREATED).send({ data: user }))
-    .catch((err) => {
-      if (err instanceof mongoose.Error.ValidationError) {
-        return res.status(HTTP_STATUS_BAD_REQUEST).send({
-          message: `Переданы некорректные данные. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
-      }
-      return res.status(HTTP_STATUS_INTERNAL_SERVER_ERROR).send({
-        message: `Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-      });
-    });
+    .catch((err) => next(new CustomError(err)));
 };
 
-module.exports.updateUserInfo = (req, res) => {
+module.exports.updateUserInfo = (req, res, next) => {
   const userId = req.user._id;
   User.findByIdAndUpdate(userId, req.body, { returnDocument: 'after', runValidators: true })
     .orFail()
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
-    .catch((err) => {
-      if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        return res.status(HTTP_STATUS_NOT_FOUND).send({
-          message: `Пользователь с переданным _id не существует. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
-      }
-      if (err instanceof mongoose.Error.CastError) {
-        return res.status(HTTP_STATUS_BAD_REQUEST).send({
-          message: `Некорректный формат _id. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
-      }
-      if (err instanceof mongoose.Error.ValidationError) {
-        return res.status(HTTP_STATUS_BAD_REQUEST).send({
-          message: `Переданы некорректные данные. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
-      }
-      return res.status(HTTP_STATUS_INTERNAL_SERVER_ERROR).send({
-        message: `Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-      });
-    });
+    .catch((err) => next(new CustomError(err)));
 };
 
-module.exports.updateUserAvatar = (req, res) => {
+module.exports.updateUserAvatar = (req, res, next) => {
   const userId = req.user._id;
   const { avatar } = req.body;
   User.findByIdAndUpdate(userId, { avatar }, { returnDocument: 'after', runValidators: true })
     .orFail()
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
-    .catch((err) => {
-      if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        return res.status(HTTP_STATUS_NOT_FOUND).send({
-          message: `Пользователь с переданным _id не существует. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
-      }
-      if (err instanceof mongoose.Error.ValidationError
-         || err instanceof mongoose.Error.CastError) {
-        return res.status(HTTP_STATUS_BAD_REQUEST).send({
-          message: `Переданы некорректные данные. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
-      }
-      return res.status(HTTP_STATUS_INTERNAL_SERVER_ERROR).send({
-        message: `Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-      });
-    });
+    .catch((err) => next(new CustomError(err)));
+};
+
+module.exports.login = (req, res, next) => {
+  const { email, password } = req.body;
+
+  return User.findUserByCredentials(email, password)
+    .then((user) => {
+      const token = jwt.sign({ _id: user._id }, 'some-secret-key', { expiresIn: '7d' });
+      res
+        .cookie('jwtMesto', token, {
+          maxAge: 3600000 * 24 * 7,
+          httpOnly: true,
+        })
+        .end();
+    })
+    .catch((err) => next(new CustomError(err)));
+};
+
+module.exports.getCurrentUserInfo = (req, res, next) => {
+  const userId = req.user._id;
+  User.findById(userId)
+    .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
+    .catch((err) => next(new CustomError(err)));
 };
