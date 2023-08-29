@@ -35,7 +35,7 @@ module.exports.deleteCard = (req, res, next) => {
     .orFail()
     .then((card) => {
       if (String(card.owner) !== req.user._id) {
-        return next(new ForbiddenError('Вы не можете удалять карточки других пользвателей', 'ForbiddenError', 'Доступ запрещен'));
+        return next(new ForbiddenError('Вы не можете удалять карточки других пользвателей.', 'ForbiddenError', 'Доступ запрещен'));
       }
 
       return Card.deleteOne({ _id: req.params.cardId })
@@ -52,7 +52,7 @@ module.exports.deleteCard = (req, res, next) => {
         return next(new NotFoundError('Карточки с переданным _id не существует.', err.name, err.message));
       }
       if (err instanceof mongoose.Error.CastError) {
-        return next(new BadReqError('Некорректный формат _id', err.name, err.message));
+        return next(new BadReqError('Некорректный формат _id.', err.name, err.message));
       }
       return next(err);
     });
@@ -73,7 +73,7 @@ module.exports.likeCard = (req, res, next) => {
         return next(new NotFoundError('Карточки с переданным _id не существует.', err.name, err.message));
       }
       if (err instanceof mongoose.Error.CastError) {
-        return next(new BadReqError('Некорректный формат _id', err.name, err.message));
+        return next(new BadReqError('Некорректный формат _id.', err.name, err.message));
       }
       return next(err);
     });
@@ -92,7 +92,7 @@ module.exports.dislikeCard = (req, res, next) => {
         return next(new NotFoundError('Карточки с переданным _id не существует.', err.name, err.message));
       }
       if (err instanceof mongoose.Error.CastError) {
-        return next(new BadReqError('Некорректный формат _id', err.name, err.message));
+        return next(new BadReqError('Некорректный формат _id.', err.name, err.message));
       }
       return next(err);
     });

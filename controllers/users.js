@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const BadReqError = require('../errors/bad-req-err');
 const NotFoundError = require('../errors/not-found-err');
+const ConflictError = require('../errors/conflict-err');
 
 module.exports.getUsers = (req, res, next) => {
   User.find({})
@@ -26,10 +27,10 @@ module.exports.findUser = (req, res, next) => {
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
     .catch((err) => {
       if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        return next(new NotFoundError('Пользователь с переданным _id не существует', err.name, err.message));
+        return next(new NotFoundError('Пользователь с переданным _id не существует.', err.name, err.message));
       }
       if (err instanceof mongoose.Error.CastError) {
-        return next(new BadReqError('Некорректный формат _id', err.name, err.message));
+        return next(new BadReqError('Некорректный формат _id.', err.name, err.message));
       }
       return next(err);
     });
@@ -54,7 +55,10 @@ module.exports.createUser = (req, res, next) => {
     })
     .catch((err) => {
       if (err instanceof mongoose.Error.ValidationError) {
-        return next(new BadReqError('Переданы некорректные данные', err.name, err.message));
+        return next(new BadReqError('Переданы некорректные данные.', err.name, err.message));
+      }
+      if (err.code === 11000) {
+        return next(new ConflictError('Пользователь с таким email уже существует.', err.name, err.message));
       }
       return next(err);
     });
@@ -67,13 +71,13 @@ module.exports.updateUserInfo = (req, res, next) => {
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
     .catch((err) => {
       if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        return next(new NotFoundError('Пользователь с переданным _id не существует', err.name, err.message));
+        return next(new NotFoundError('Пользователь с переданным _id не существует.', err.name, err.message));
       }
       if (err instanceof mongoose.Error.CastError) {
         return next(new BadReqError('Некорректный формат _id.', err.name, err.message));
       }
       if (err instanceof mongoose.Error.ValidationError) {
-        return next(new BadReqError('Переданы некорректные данные', err.name, err.message));
+        return next(new BadReqError('Переданы некорректные данные.', err.name, err.message));
       }
       return next(err);
     });
@@ -87,7 +91,7 @@ module.exports.updateUserAvatar = (req, res, next) => {
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
     .catch((err) => {
       if (err instanceof mongoose.Error.ValidationError) {
-        return next(new BadReqError('Переданы некорректные данные', err.name, err.message));
+        return next(new BadReqError('Переданы некорректные данные.', err.name, err.message));
       }
       return next(err);
     });
