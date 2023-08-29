@@ -3,25 +3,36 @@ const {
   HTTP_STATUS_CREATED,
 } = require('http2').constants;
 
+const mongoose = require('mongoose');
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const User = require('../models/user');
-const CustomError = require('../errors/customError');
+const BadReqError = require('../errors/bad-req-err');
+const NotFoundError = require('../errors/not-found-err');
 
 module.exports.getUsers = (req, res, next) => {
   User.find({})
     .then((users) => {
       res.status(HTTP_STATUS_OK).send({ data: users });
     })
-    .catch((err) => next(new CustomError(err)));
+    .catch(next);
 };
 
 module.exports.findUser = (req, res, next) => {
   User.findById(req.params.userId)
     .orFail()
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
-    .catch((err) => next(new CustomError(err)));
+    .catch((err) => {
+      if (err instanceof mongoose.Error.DocumentNotFoundError) {
+        return next(new NotFoundError('Пользователь с переданным _id не существует', err.name, err.message));
+      }
+      if (err instanceof mongoose.Error.CastError) {
+        return next(new BadReqError('Некорректный формат _id', err.name, err.message));
+      }
+      return next(err);
+    });
 };
 
 module.exports.createUser = (req, res, next) => {
@@ -41,7 +52,12 @@ module.exports.createUser = (req, res, next) => {
         name, about, avatar, email, _id: user._id,
       });
     })
-    .catch((err) => next(new CustomError(err)));
+    .catch((err) => {
+      if (err instanceof mongoose.Error.ValidationError) {
+        return next(new BadReqError('Переданы некорректные данные', err.name, err.message));
+      }
+      return next(err);
+    });
 };
 
 module.exports.updateUserInfo = (req, res, next) => {
@@ -49,7 +65,18 @@ module.exports.updateUserInfo = (req, res, next) => {
   User.findByIdAndUpdate(userId, req.body, { returnDocument: 'after', runValidators: true })
     .orFail()
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
-    .catch((err) => next(new CustomError(err)));
+    .catch((err) => {
+      if (err instanceof mongoose.Error.DocumentNotFoundError) {
+        return next(new NotFoundError('Пользователь с переданным _id не существует', err.name, err.message));
+      }
+      if (err instanceof mongoose.Error.CastError) {
+        return next(new BadReqError('Некорректный формат _id.', err.name, err.message));
+      }
+      if (err instanceof mongoose.Error.ValidationError) {
+        return next(new BadReqError('Переданы некорректные данные', err.name, err.message));
+      }
+      return next(err);
+    });
 };
 
 module.exports.updateUserAvatar = (req, res, next) => {
@@ -58,7 +85,12 @@ module.exports.updateUserAvatar = (req, res, next) => {
   User.findByIdAndUpdate(userId, { avatar }, { returnDocument: 'after', runValidators: true })
     .orFail()
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
-    .catch((err) => next(new CustomError(err)));
+    .catch((err) => {
+      if (err instanceof mongoose.Error.ValidationError) {
+        return next(new BadReqError('Переданы некорректные данные', err.name, err.message));
+      }
+      return next(err);
+    });
 };
 
 module.exports.login = (req, res, next) => {
@@ -77,12 +109,12 @@ module.exports.login = (req, res, next) => {
       })
         .end();
     })
-    .catch((err) => next(new CustomError(err)));
+    .catch(next);
 };
 
 module.exports.getCurrentUserInfo = (req, res, next) => {
   const userId = req.user._id;
   User.findById(userId)
     .then((user) => res.status(HTTP_STATUS_OK).send({ data: user }))
-    .catch((err) => next(new CustomError(err)));
+    .catch(next);
 };

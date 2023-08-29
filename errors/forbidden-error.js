@@ -1,12 +1,12 @@
 const {
-  HTTP_STATUS_NOT_FOUND,
+  HTTP_STATUS_FORBIDDEN,
 } = require('http2').constants;
 
-class NotFoundError extends Error {
+class ForbiddenError extends Error {
   constructor(message, errName, errMessage) {
     super(`${message} Ошибка: ${errName}. Сообщение ошибки: ${errMessage}`);
-    this.statusCode = HTTP_STATUS_NOT_FOUND;
+    this.statusCode = HTTP_STATUS_FORBIDDEN;
   }
 }
 
-module.exports = NotFoundError;
+module.exports = ForbiddenError;

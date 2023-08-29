@@ -1,12 +1,12 @@
 const {
-  HTTP_STATUS_NOT_FOUND,
+  HTTP_STATUS_CONFLICT,
 } = require('http2').constants;
 
-class NotFoundError extends Error {
+class ConflictError extends Error {
   constructor(message, errName, errMessage) {
     super(`${message} Ошибка: ${errName}. Сообщение ошибки: ${errMessage}`);
-    this.statusCode = HTTP_STATUS_NOT_FOUND;
+    this.statusCode = HTTP_STATUS_CONFLICT;
   }
 }
 
-module.exports = NotFoundError;
+module.exports = ConflictError;

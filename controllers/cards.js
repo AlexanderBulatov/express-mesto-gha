@@ -1,19 +1,20 @@
 const {
   HTTP_STATUS_OK,
   HTTP_STATUS_CREATED,
-  HTTP_STATUS_BAD_REQUEST,
-  HTTP_STATUS_NOT_FOUND,
-  HTTP_STATUS_INTERNAL_SERVER_ERROR,
 } = require('http2').constants;
 
 const mongoose = require('mongoose');
+
 const Card = require('../models/card');
-const CustomError = require('../errors/customError');
+
+const BadReqError = require('../errors/bad-req-err');
+const NotFoundError = require('../errors/not-found-err');
+const ForbiddenError = require('../errors/forbidden-error');
 
 module.exports.getCards = (req, res, next) => {
   Card.find({})
     .then((card) => res.status(HTTP_STATUS_OK).send({ data: card }))
-    .catch((err) => next(new CustomError(err)));
+    .catch(next);
 };
 
 module.exports.createCard = (req, res, next) => {
@@ -21,7 +22,12 @@ module.exports.createCard = (req, res, next) => {
   const owner = req.user._id;
   Card.create({ name, link, owner })
     .then((card) => res.status(HTTP_STATUS_CREATED).send({ data: card }))
-    .catch((err) => next(new CustomError(err)));
+    .catch((err) => {
+      if (err instanceof mongoose.Error.ValidationError) {
+        return next(new BadReqError('Переданы некорректные данные.', err.name, err.message));
+      }
+      return next(err);
+    });
 };
 
 module.exports.deleteCard = (req, res, next) => {
@@ -29,44 +35,30 @@ module.exports.deleteCard = (req, res, next) => {
     .orFail()
     .then((card) => {
       if (String(card.owner) !== req.user._id) {
-        return Promise.reject(new Error('Forbidden delete'));
+        return next(new ForbiddenError('Вы не можете удалять карточки других пользвателей', 'ForbiddenError', 'Доступ запрещен'));
       }
 
       return Card.deleteOne({ _id: req.params.cardId })
         .then((resObj) => ({ resObj, card }))
-        .catch((err) => next(new CustomError(err)));
+        .catch(next);
     })
     .then(({ resObj, card }) => {
       if (!resObj.deletedCount) return Promise.reject(new Error('Bad delete'));
       res.status(HTTP_STATUS_OK).send({ data: card });
       return null;
     })
-    .catch((err) => next(new CustomError(err)));
+    .catch((err) => {
+      if (err instanceof mongoose.Error.DocumentNotFoundError) {
+        return next(new NotFoundError('Карточки с переданным _id не существует.', err.name, err.message));
+      }
+      if (err instanceof mongoose.Error.CastError) {
+        return next(new BadReqError('Некорректный формат _id', err.name, err.message));
+      }
+      return next(err);
+    });
 };
-// Card.findByIdAndRemove({_id: req.params.cardId, owner: req.user._id})
-//   .orFail()
-//   .then((card) => res.send({ data: card }))
-//   .catch((err) => {
-//     if (err instanceof mongoose.Error.DocumentNotFoundError) {
-//       return res.status(HTTP_STATUS_NOT_FOUND).send({
-//         message:
-// `Карточки с переданным _id не существует.
-//  Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-//       });
-//     }
-//     if (err instanceof mongoose.Error.CastError) {
-//       return res.status(HTTP_STATUS_BAD_REQUEST).send({
-//         message:
-// `Некорректный формат _id.
-// Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-//       });
-//     }
-//     return res.status(HTTP_STATUS_INTERNAL_SERVER_ERROR).send({
-//       message: `Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-//     });
-//   });
 
-module.exports.likeCard = (req, res) => {
+module.exports.likeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $addToSet: { likes: req.user._id } },
@@ -78,23 +70,16 @@ module.exports.likeCard = (req, res) => {
     })
     .catch((err) => {
       if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        return res.status(HTTP_STATUS_NOT_FOUND).send({
-          message: `Карточки с переданным _id не существует. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
+        return next(new NotFoundError('Карточки с переданным _id не существует.', err.name, err.message));
       }
-      if (err instanceof mongoose.Error.ValidationError
-        || err instanceof mongoose.Error.CastError) {
-        return res.status(HTTP_STATUS_BAD_REQUEST).send({
-          message: `Переданы некорректные данные. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
+      if (err instanceof mongoose.Error.CastError) {
+        return next(new BadReqError('Некорректный формат _id', err.name, err.message));
       }
-      return res.status(HTTP_STATUS_INTERNAL_SERVER_ERROR).send({
-        message: `Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-      });
+      return next(err);
     });
 };
 
-module.exports.dislikeCard = (req, res) => {
+module.exports.dislikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } },
@@ -104,18 +89,11 @@ module.exports.dislikeCard = (req, res) => {
     .then((card) => res.status(HTTP_STATUS_OK).send({ data: card }))
     .catch((err) => {
       if (err instanceof mongoose.Error.DocumentNotFoundError) {
-        return res.status(HTTP_STATUS_NOT_FOUND).send({
-          message: `Карточки с переданным _id не существует. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
+        return next(new NotFoundError('Карточки с переданным _id не существует.', err.name, err.message));
       }
-      if (err instanceof mongoose.Error.ValidationError
-        || err instanceof mongoose.Error.CastError) {
-        return res.status(HTTP_STATUS_BAD_REQUEST).send({
-          message: `Переданы некорректные данные. Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-        });
+      if (err instanceof mongoose.Error.CastError) {
+        return next(new BadReqError('Некорректный формат _id', err.name, err.message));
       }
-      return res.status(HTTP_STATUS_INTERNAL_SERVER_ERROR).send({
-        message: `Ошибка: ${err.name}. Сообщение ошибки: ${err.message}`,
-      });
+      return next(err);
     });
 };

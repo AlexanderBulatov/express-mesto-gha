@@ -4,10 +4,8 @@ const {
 
 class BadReqError extends Error {
   constructor(message, errName, errMessage) {
-    console.log(message);
-    super();
+    super(`${message} Ошибка: ${errName}. Сообщение ошибки: ${errMessage}`);
     this.statusCode = HTTP_STATUS_BAD_REQUEST;
-    this.message = `${message} Ошибка: ${errName}. Сообщение ошибки: ${errMessage}`;
   }
 }
 

@@ -6,15 +6,9 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
-const { celebrate, Joi, errors } = require('celebrate');
+const { errors } = require('celebrate');
 
 const router = require('./routes/index');
-
-const auth = require('./middlewares/auth');
-
-const {
-  createUser, login,
-} = require('./controllers/users');
 
 const { PORT = 3000, DB_URL = 'mongodb://127.0.0.1:27017/mestodb' } = process.env;
 
@@ -32,32 +26,18 @@ mongoose.connect(DB_URL, {});
 
 app.use(cookieParser());
 
-app.post('/signin', celebrate({
-  body: Joi.object().keys({
-    email: Joi.string().required().email(),
-    password: Joi.string().required(),
-  }),
-}), login);
-
-app.post('/signup', celebrate({
-  body: Joi.object().keys({
-    email: Joi.string().required().email(),
-    password: Joi.string().required(),
-    name: Joi.string().min(2).max(30),
-    about: Joi.string().min(2).max(30),
-    avatar: Joi.string().pattern(/^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._+~#=[\]]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_+.~#?&/=[\]]*)$/),
-  }).unknown(true),
-}), createUser);
-
-app.use(auth);
 app.use('/', router);
 
 app.use(errors());
 
-// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  const { statusCode = HTTP_STATUS_INTERNAL_SERVER_ERROR, message = err.message } = err;
-  res.status(statusCode).send({ message });
+  const { statusCode = HTTP_STATUS_INTERNAL_SERVER_ERROR, message } = err;
+  res.status(statusCode).send({
+    message: statusCode === 500
+      ? `На сервере произошла ошибка. ${err.message}`
+      : message,
+  });
+  next();
 });
 
 app.listen(PORT, () => {});
